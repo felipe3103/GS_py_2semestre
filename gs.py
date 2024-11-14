@@ -11,9 +11,20 @@ def salvar_dados(dados, arquivo='dados_agricultura.json'):
 def carregar_dados(arquivo='dados_agricultura.json'):
     try:
         with open(arquivo, 'r') as f:
-            return json.load(f)
+            dados = json.load(f)
     except FileNotFoundError:
-        return {}
+        dados = {}
+
+    # Garante que 'plantacoes' é sempre uma lista
+    if 'plantacoes' not in dados:
+        dados['plantacoes'] = []
+
+    # Garante que cada plantação tem a chave 'quantidade_paineis' com valor padrão 0 se estiver ausente
+    for plantacao in dados['plantacoes']:
+        if 'quantidade_paineis' not in plantacao:
+            plantacao['quantidade_paineis'] = 0
+
+    return dados
 
 
 # Funções de validação
@@ -41,11 +52,11 @@ def validar_opcao(mensagem, opcoes):
 def cadastrar_plantacao(dados):
     nome = input("Nome da Plantação: ")
     tamanho = validar_numero("Tamanho da Plantação (em hectares): ", float)
-    energia_solar = validar_numero("Energia Solar Produzida (em kWh): ", float)
+    quantidade_paineis = validar_numero("Quantidade de Painéis Solares: ", int)
     dados['plantacoes'].append({
         "nome": nome,
         "tamanho": tamanho,
-        "energia_solar": energia_solar,
+        "quantidade_paineis": quantidade_paineis,
         "uso_IA": False  # Por padrão, o uso de IA é falso
     })
     print("Plantação cadastrada com sucesso!")
@@ -55,10 +66,16 @@ def listar_plantacoes(dados):
     if not dados['plantacoes']:
         print("Nenhuma plantação cadastrada.")
         return
+
     print("\nPlantações cadastradas:")
     for idx, plantacao in enumerate(dados['plantacoes'], start=1):
-        print(
-            f"{idx}. Nome: {plantacao['nome']}, Tamanho: {plantacao['tamanho']} ha, Energia Solar: {plantacao['energia_solar']} kWh, Uso de IA: {plantacao['uso_IA']}")
+        # Verifica se a estrutura de dados da plantação é consistente
+        if all(key in plantacao for key in ("nome", "tamanho", "quantidade_paineis", "uso_IA")):
+            print(
+                f"{idx}. Nome: {plantacao['nome']}, Tamanho: {plantacao['tamanho']} ha, Quantidade de Painéis Solares: {plantacao['quantidade_paineis']}, Uso de IA: {plantacao['uso_IA']}"
+            )
+        else:
+            print(f"{idx}. Plantação com dados incompletos ou inconsistentes, verifique os registros.")
 
 
 def ativar_ia(dados):
@@ -69,11 +86,21 @@ def ativar_ia(dados):
         print("Inteligência Artificial ativada para a plantação selecionada.")
 
         # Simulações de funcionalidades da IA
+        quantidade_paineis = dados['plantacoes'][escolha]['quantidade_paineis']
+        energia_calculada = calcular_energia_solar(quantidade_paineis)
         monitorar_clima()
-        otimizar_energia(dados['plantacoes'][escolha]['energia_solar'])
+        otimizar_energia(energia_calculada)
         analisar_crescimento()
     else:
         print("Nenhuma alteração realizada.")
+
+
+def calcular_energia_solar(quantidade_paineis):
+    # Supondo que cada painel gera em média 5 kWh por dia
+    energia_por_painel = 5
+    energia_total = quantidade_paineis * energia_por_painel
+    print(f"A IA calculou que a energia solar gerada é aproximadamente {energia_total} kWh.")
+    return energia_total
 
 
 def monitorar_clima():
@@ -101,22 +128,21 @@ def calcular_media_energia(dados):
     if not dados['plantacoes']:
         print("Nenhuma plantação cadastrada.")
         return
-    total_energia = sum(p['energia_solar'] for p in dados['plantacoes'])
-    media_energia = total_energia / len(dados['plantacoes'])
-    print(f"Média de Energia Solar Produzida: {media_energia:.2f} kWh")
+    total_paineis = sum(p['quantidade_paineis'] for p in dados['plantacoes'])
+    energia_por_painel = 5  # 5 kWh por painel como estimativa
+    media_energia = (total_paineis * energia_por_painel) / len(dados['plantacoes'])
+    print(f"Média de Energia Solar Estimada: {media_energia:.2f} kWh")
 
 
 def menu():
     dados = carregar_dados()
-    if 'plantacoes' not in dados:
-        dados['plantacoes'] = []
 
     while True:
         print("\n--- Sistema de Agricultura Sustentável ---")
         print("1. Cadastrar nova plantação")
         print("2. Listar plantações")
         print("3. Ativar Inteligência Artificial em uma plantação")
-        print("4. Calcular média de energia solar produzida")
+        print("4. Calcular média de energia solar estimada")
         print("5. Sair")
 
         opcao = validar_opcao("Escolha uma opção: ", ['1', '2', '3', '4', '5'])
